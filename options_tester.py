@@ -1,20 +1,16 @@
 import numpy as np
 import pandas as pd
 import math
-from pandas_datareader.data import Options
 import datetime
+import pandas_datareader.data as web
+from pandas_datareader.data import Options
 from yahoo_finance import Share
 from datetime import date
 from roll_dice import roll_dice
 from black_scholes import BlackScholes
 from kde_model import build_kde_model
 from kde_model import price_kde_option
-import pandas_datareader.data as web
 
-# TODO convert models 
-#   X    -Black-Scholes, Rachel 
-#   X    -roll dice, Andrew 
-#   X    -propogation model, Dan 
 
 # Constant that defines the risk free interest rate
 rfir = 0.010
@@ -56,7 +52,6 @@ def datetime_to_days(expiry):
     
 # Function that takes a pricing model and calculates its error in predicting
 # a range of options values
-# - Jon
 def compute_model_error(model, symbol, side, exp_start, exp_end, strike_low, strike_high):
     
     #Get the option prices
@@ -68,13 +63,13 @@ def compute_model_error(model, symbol, side, exp_start, exp_end, strike_low, str
     #get yesterdays stock price
     stock_price = float(Share(symbol).get_price())
 
-    labels = ["strike", "expiry", "option price", "predicted price", "error"]
+    labels = ["strike", "expiry", "option price", "pred price", "error"]
     data = []
     for index, row in options_data.iterrows():
         strike = index[0]
         expiration_date = index[1].date()
         option_price = row['Last']
-        pred_price = model(strike, stock_price, expiration_date, side)
+        pred_price = round(model(strike, stock_price, expiration_date, side), 2)
 
         data.append([strike, expiration_date.strftime('%Y-%m-%d'), option_price, pred_price, option_price-pred_price])
 
@@ -86,7 +81,7 @@ if __name__ == '__main__':
     side = 'call'
     exp_start = date(2017, 5, 5)
     exp_end = date(2017, 5, 20)
-    strike_low = 155
+    strike_low = 145
     strike_high = 160
 
     ####Calculate Alpha and volatility######
@@ -97,13 +92,15 @@ if __name__ == '__main__':
     volatility = np.std(dcgr)
     ###########################################
 
-    # print(datetime_to_days(expiry))
-    # print(rolldice_price_option(strike, stp, expiry, True))
-    # print(bs_price_option(strike, stp, expiry, True))
     kde_price_option = build_kde_option_pricer(symbol, start_date, end_date)
-    # print(kde_price_option(strike, stp, expiry, True))
 
-    labels, data = compute_model_error(kde_price_option, symbol, side, exp_start, exp_end, strike_low, strike_high)
+    #The three option pricing models you can use is
+    # kde_price_option ()
+    # bs_price_option (black scholes)
+    # rolldice_price_option (roll dice)
+    labels, data = compute_model_error(bs_price_option, symbol, side, exp_start, exp_end, strike_low, strike_high)
+   
+
     options_df = pd.DataFrame.from_records(data, columns=labels)
     print("stock: " + symbol)
     print("price: " + str(Share(symbol).get_price()))

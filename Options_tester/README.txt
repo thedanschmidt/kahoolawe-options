@@ -5,9 +5,10 @@ Things to install
 Pandas: 		pip install pandas
 Yahoo finance: 		pip install yahoo-finance
 Scikit Learn:		pip install -U scikit-learn
+Pandas Datareader: pip install pandas-datareader
 
 The 3 models you can use is:
-Kernal Density model
+Kernal Density model (estimates the underlying stock distribution from daily Yahoo data)
 Black Scholes Model
 Roll Dice Model
 

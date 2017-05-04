@@ -1,12 +1,9 @@
 import numpy as np
 import pandas as pd
 import math
-<<<<<<< HEAD
-import pandas_datareader.data as web
 from pandas_datareader.data import Options
-=======
 import datetime
->>>>>>> d8124a1cc1dcaa7fc620854be928a4f502725c41
+from yahoo_finance import Share
 from datetime import date
 from roll_dice import roll_dice
 from black_scholes import BlackScholes
@@ -23,7 +20,9 @@ import pandas_datareader.data as web
 rfir = 0.010
 
 # Returns a numpy array of the continuous growth rate
-def contGrowthRate(prices):
+def contGrowthRate(symbol, start_date, end_date):
+    stock = web.DataReader(symbol, 'yahoo', start_date, end_date)
+    prices = stock['Adj Close']
     dcgr = np.zeros( (len(prices)-1, 1) )
     for i in range(len(prices)-1):
         dcgr[i] = np.log(prices[i+1] / prices[i])
@@ -45,9 +44,9 @@ def build_kde_option_pricer(symbol, start_date, end_date):
     stock = web.DataReader(symbol, 'yahoo', start_date, end_date)
     prices = stock['Adj Close']
     kernel_estimate = build_kde_model(prices) 
-    def kde_price_option(strike, underlying, expiration_date, side):
+    def kde_price_option(strike, stock_price, expiration_date, side):
         days = datetime_to_days(expiration_date)
-        return price_kde_option(kernel_estimate, days, underlying, strike, side)
+        return price_kde_option(kernel_estimate, days, stock_price, strike, side)
     return kde_price_option
 
 def datetime_to_days(expiry):
@@ -58,41 +57,54 @@ def datetime_to_days(expiry):
 # Function that takes a pricing model and calculates its error in predicting
 # a range of options values
 # - Jon
-def compute_model_error(model, symbol, side, date_list=None, strike_prices=None):
+def compute_model_error(model, symbol, side, exp_start, exp_end, strike_low, strike_high):
     
     #Get the option prices
     options_sym = Options(symbol, 'yahoo')
     options_sym.expiry_dates
     options_data = options_sym.get_all_data()
+    options_data = options_data.loc[(slice(strike_low,strike_high), slice(exp_start, exp_end), side),:]
 
-    #get stock price
-    stock_price = web.DataReader(symbol, 'yahoo', date.today(), date.today())['Adj Close']
-    error = 0
+    #get yesterdays stock price
+    stock_price = float(Share(symbol).get_price())
 
-    for exp_date in date_list:
-        for strike in strike_prices:
-            option_price = options_data.loc[(strike, exp_date, side)]['Last']
-            pred_price = model(strike, stock_price, expiration_date, side)
-            error += math.pow(pred_price - option_price, 2)
+    labels = ["strike", "expiry", "option price", "predicted price", "error"]
+    data = []
+    for index, row in options_data.iterrows():
+        strike = index[0]
+        expiration_date = index[1].date()
+        option_price = row['Last']
+        pred_price = model(strike, stock_price, expiration_date, side)
 
-    return math.sqrt(error)
+        data.append([strike, expiration_date.strftime('%Y-%m-%d'), option_price, pred_price, option_price-pred_price])
+
+    return labels, data
 
 if __name__ == '__main__':
+    #Variables to Change
     symbol = "NFLX"
-    stp = float(155.59)
-    strike = float(158)
-    expiry = date(2017, 5, 13)
-    start_date = datetime.datetime(2016, 5, 13)
+    side = 'call'
+    exp_start = date(2017, 5, 5)
+    exp_end = date(2017, 5, 20)
+    strike_low = 155
+    strike_high = 160
+
+    ####Calculate Alpha and volatility######
+    start_date = datetime.datetime(2016, 5, 5)
     end_date = datetime.datetime(2017, 5, 13)
-    stock = web.DataReader(symbol, 'yahoo', start_date, end_date)
-    prices = stock['Adj Close']
-    dcgr = contGrowthRate(prices)
+    dcgr = contGrowthRate(symbol, start_date, end_date)
     alpha = np.mean(dcgr)
     volatility = np.std(dcgr)
+    ###########################################
 
-    print(datetime_to_days(expiry))
-    print(rolldice_price_option(strike, stp, expiry, True))
-    print(bs_price_option(strike, stp, expiry, True))
-    print(compute_model_error(rolldice_price_option, 'NFLX', 'call', ['2017-05-05'], [150]))
+    # print(datetime_to_days(expiry))
+    # print(rolldice_price_option(strike, stp, expiry, True))
+    # print(bs_price_option(strike, stp, expiry, True))
     kde_price_option = build_kde_option_pricer(symbol, start_date, end_date)
-    print(kde_price_option(strike, stp, expiry, True))
+    # print(kde_price_option(strike, stp, expiry, True))
+
+    labels, data = compute_model_error(kde_price_option, symbol, side, exp_start, exp_end, strike_low, strike_high)
+    options_df = pd.DataFrame.from_records(data, columns=labels)
+    print("stock: " + symbol)
+    print("price: " + str(Share(symbol).get_price()))
+    print(options_df)

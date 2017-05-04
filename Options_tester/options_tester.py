@@ -1,3 +1,4 @@
+# Written By  Rachel Lee (CMC '17), Andrew Scott (HMC '17), Dan Schmidt (HMC '17), Jon Ueki (HMC '17)
 import numpy as np
 import pandas as pd
 import math
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     kde_price_option = build_kde_option_pricer(symbol, start_date, end_date)
 
     #The three option pricing models you can use is
-    # kde_price_option ()
+    # kde_price_option (kernal density estimator)
     # bs_price_option (black scholes)
     # rolldice_price_option (roll dice)
     labels, data = compute_model_error(bs_price_option, symbol, side, exp_start, exp_end, strike_low, strike_high)
